@@ -5,6 +5,7 @@ import sys
 class ConfigManager:
     def __init__(self):
         self.config_path = self._get_config_path()
+        self.load_error = None  # Set if config.json existed but failed to load
         self.settings = self.load()
 
     def _get_config_path(self):
@@ -20,7 +21,8 @@ class ConfigManager:
             "footer": "Kirim bukti transfer yaa 💛\nTerima kasih sudah order! 🫶🏻",
             "bank_account": "BCA: 7401855576 a/n Raula Saffanah Putri",
             "auto_send_delay": 2.0,
-            "default_ongkir": 0  # Added default ongkir
+            "default_ongkir": 0,  # Added default ongkir
+            "auto_press_enter": True  # Auto-presses Enter after opening WA; toggle off in Settings if needed
         }
 
         if not os.path.exists(self.config_path):
@@ -29,8 +31,13 @@ class ConfigManager:
             
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
+                loaded = json.load(f)
+            # Fill in any keys missing from an older config.json without
+            # discarding the user's existing customizations.
+            merged = {**default_config, **loaded}
+            return merged
+        except Exception as e:
+            self.load_error = str(e)
             return default_config
 
     def save(self, config_dict):

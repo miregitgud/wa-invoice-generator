@@ -3,6 +3,22 @@ from datetime import datetime
 
 class InvoiceParser:
     @staticmethod
+    def is_valid_indonesian_phone(phone):
+        """
+        Validate a normalized phone number (already converted to 62-prefixed form).
+        Indonesian mobile numbers are typically 10-13 digits total after the
+        country code is applied (62 + 8xx + 7-10 more digits), i.e. 11-15 digits
+        overall. Reject anything that's clearly not in that shape.
+        """
+        if not phone:
+            return False
+        if not phone.isdigit():
+            return False
+        if not phone.startswith("628"):
+            return False
+        return 11 <= len(phone) <= 15
+
+    @staticmethod
     def get_indonesian_date():
         months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                   "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
@@ -31,12 +47,18 @@ class InvoiceParser:
             
             # 2. Phone Number
             phone = ""
+            phone_valid = True
             phone_match = re.search(r'(\b08\d{8,11}\b|\b628\d{8,11}\b)', line)
             if phone_match:
                 phone = phone_match.group(1)
                 line = line.replace(phone, "").strip()
                 if phone.startswith("08"):
                     phone = "62" + phone[1:]
+                phone_valid = InvoiceParser.is_valid_indonesian_phone(phone)
+                if not phone_valid:
+                    # Keep the raw value so the UI can show what looked wrong,
+                    # but don't let it be used for sending.
+                    pass
 
             # 3. Ongkir Logic
             ongkir_val = default_ongkir_config # Start with default
@@ -98,7 +120,9 @@ Pembayaran
 
             parsed_data.append({
                 "name": name,
-                "phone": phone,
+                "phone": phone if phone_valid else "",
+                "phone_raw": phone,
+                "phone_valid": phone_valid,
                 "text": invoice_text
             })
             
